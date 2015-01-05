@@ -1,9 +1,9 @@
 # ImageMerger Library
 ImageMerger provided as library file and depends only on this polyfill --
-[Canvas-to-Blob](https://github.com/blueimp/JavaScript-Canvas-to-Blob), this polyfill is included in archive. Also I included there one example, that one which was in the videos.
+[Canvas-to-Blob](https://github.com/blueimp/JavaScript-Canvas-to-Blob), this polyfill is included in archive. Also I have included there one example.
 
 ## Docs
-To stat work with ImageMerger, first need to initialize it. This is initialization snippet from example attached to archive:
+To stat work with ImageMerger, first need to initialize it. This is initialization snippet from attached example:
 
 ```javascript
 input.addEventListener('change', function() {
@@ -21,7 +21,7 @@ input.addEventListener('change', function() {
 		width: 600,
 
 		onError: function(e) {
-			alert(['Error:', e].join(' '));
+			console.log('Error:', e);
 		}
 	});
 });
