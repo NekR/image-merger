@@ -32,7 +32,7 @@ ImageMerger constructor takes object as its first argument.
 * **file**: File object, usually comes from ```input.files``` field, but of course not limited to it. Should be image, if it's not then error will occur.
 * **filename**: Indicates file name of resulting image. If extensions does not match image extensions or browser do not support such tape of image, then error might be thrown. Most usual formats are PNG and JPEG.
 
-### Options fields
+### Optional fields
 * **width**: Width of output image, if not specified will you ```naturalWidth``` of given file. Height always comes from ```naturalHeight``` of given file and scales on passed width.
 * **query**: Indicates key for ```FormData``` entry. Used in ```ImageMerger.getFormData``` method.
 * **followPixelRatio**: If ```true``` then backing-store of canvas will be adapted to device-pixel-ratio. In practice, this means that canvas image will be multiplied by ```devicePixelRatio``` value. So if  ```devicePixelRatio``` is 2 and given file dimensions are 800x600, then output image will have dimensions 1600x1200. _Default_: ```false```
