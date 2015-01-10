@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.imagemerger.image-merger"
+    version="0.0.1" xmlns="http://www.w3.org/ns/widgets"
+    xmlns:cdv="http://cordova.apache.org/ns/1.0"
+>
+    <name>Image Merger</name>
+    <description>
+        Take image from device, merge with items and upload!
+    </description>
+    <author email="" href="">
+
+    </author>
+    <content src="index.html" />
+    <access origin="*" />
+    <icon src="www/icons/icon128.png" />
+
+    <preference name="StatusBarOverlaysWebView" value="false" />
+    <preference name="StatusBarBackgroundColor" value="#000000" />
+</widget>

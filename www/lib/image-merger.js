@@ -1,5 +1,7 @@
 (function(global) {
   var hasOwn = Object.prototype.hasOwnProperty;
+  var NativeFile = window.File;
+
   var ext2type = {
     gif: 'image/gif',
     png: 'image/png',
@@ -50,18 +52,18 @@
            context.msBackingStorePixelRatio || 1;
   };
 
-  var getDPICompatContext = function(width, height, canvas) {
+  var getDPICompatContext = function(width, height, canvas, dpi) {
     canvas = canvas || document.createElement('canvas');
+    dpi = dpi || PIXEL_RATIO;
 
     var context = canvas.getContext('2d');
     var pixelRatio = 1;
     var canvasWidth = width;
     var canvasHeight = height;
-    var devicePixelRatio = PIXEL_RATIO;
     var backingStoreRatio = getBackingStoreRatio(context);
 
-    if (devicePixelRatio !== backingStoreRatio) {
-      pixelRatio = devicePixelRatio / backingStoreRatio;
+    if (dpi !== backingStoreRatio) {
+      pixelRatio = dpi / backingStoreRatio;
 
       canvasWidth = width * pixelRatio;
       canvasHeight = height * pixelRatio;
@@ -107,8 +109,11 @@
       }
     };
 
-    if (!(window.File && file instanceof window.File)) {
-      makeError('[file] in not a File');
+    if (!(
+      (NativeFile && file instanceof NativeFile) ||
+      (window.File && file instanceof window.File)
+    )) {
+      makeError('[file] is not a File');
       return;
     }
 
@@ -148,6 +153,87 @@
     reader.readAsDataURL(file);
   };
 
+  var cordovaUpload = function(file, params, callback, errback) {
+    var options = new FileUploadOptions();
+
+    var query = params.query || 'file';
+    var method = params.method;
+
+    options.fileKey = query;
+    options.fileName = file.name;
+    options.mimeType = file.type;
+
+    if (method) {
+      options.httpMethod = method;
+    }
+
+    var ft = new FileTransfer();
+
+    ft.upload(file.localURL, encodeURI(params.url), function(data) {
+      if (data.responseCode < 200 || data.responseCode >= 300) {
+        errback();
+        return;
+      }
+
+      callback(data.response);
+    }, function(err) {
+      errback(err);
+    }, options);
+  };
+
+  var nativeUpload = function(file, params, callback, errback) {
+    var xhr = new XMLHttpRequest();
+    var data = new FormData();
+
+    var method = (params.method || '').toUpperCase();
+    var query = params.query || 'file';
+
+    var onError = function() {
+      errback();
+
+      xhr.onerror = xhr.onload = xhr.onabort = null;
+    };
+
+    if (method !== 'PUT') {
+      method = 'POST';
+    }
+
+    // If "file" is a string, then "file.name" is undefined as should be
+    data.append(query, file, file.name);
+
+    xhr.open(method, params.url, true);
+    xhr.responseType = 'text';
+
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        onError();
+        return;
+      }
+
+      callback(xhr.response);
+    };
+
+    xhr.onerror = onError;
+    xhr.onabort = onError;
+
+    xhr.send(data);
+  };
+
+  var getFileFromFS = function(blob, callback, errback) {
+    window.requestFileSystem(window.TEMPORARY, blob.size + 1, function(fs) {
+      fs.root.getFile(blob.name, { create: true }, function(fileEntry) {
+        fileEntry.createWriter(function(fileWriter) {
+          fileWriter.onwriteend = function() {
+            fileEntry.file(callback, errback);
+          };
+
+          fileWriter.onerror = errback;
+          fileWriter.write(blob);
+        }, errback);
+      }, errback);
+    }, errback);
+  };
+
   // #############################
 
   var ImageMerger = function(options) {
@@ -158,14 +244,14 @@
     var output = getElement(options.output);
     var onError = options.onError;
     var width = options.width;
+    var zoom = options.zoom;
 
     this.saveMemory = !!options.saveMemory;
     this.returnAsString = !!options.returnAsString;
-    this.query = options.query || '';
     this.filename = options.filename;
     this.imageQuality = options.imageQuality;
-    this.followPixelRatio = !!options.followPixelRatio;
-    this.zoom = options.zoom;
+    this.dpi = isFinite(options.dpi) ? options.dpi : 'auto';
+    this.zoom = typeof zoom !== 'number' || !isFinite(zoom) ? 1 : zoom;
 
     readFileAsImage(file, function(img) {
       self.initPlot(output, img, width);
@@ -192,25 +278,17 @@
       }
 
       var zoom = this.zoom;
+      var dpi = this.dpi;
 
-      if (typeof zoom !== 'number' || !isFinite(zoom)) {
-        zoom = this.followPixelRatio ? (1 / PIXEL_RATIO) : 1;
-      }
+      var viewWidth = width;
+      var viewHeight = height;
+
+      var context = getDPICompatContext(width, height, null, dpi);
+      var canvas = context.canvas;
 
       if (zoom !== 1) {
-        width *= zoom;
-        height *= zoom;
-      }
-
-      if (this.followPixelRatio) {
-        var context = getDPICompatContext(width, height);
-        var canvas = context.canvas;
-      } else {
-        var canvas = document.createElement('canvas');
-        var context = canvas.getContext('2d');
-
-        canvas.width = width;
-        canvas.height = height;
+        viewWidth *= zoom;
+        viewHeight *= zoom;
       }
 
       context.drawImage(
@@ -222,32 +300,39 @@
       this.output = output;
       this.context = context;
       this.image = img;
-      this.viewWidth = width;
-      this.viewHeight = height;
+      this.viewWidth = viewWidth;
+      this.viewHeight = viewHeight;
+      this.width = width;
+      this.height = height;
 
       output.innerHTML = '';
 
       if (this.saveMemory) {
-        img.width = width;
-        img.height = height;
+        img.width = viewWidth;
+        img.height = viewHeight;
 
         var container = document.createElement('div');
 
         container.style.position = 'relative';
         container.style.overflow = 'hidden';
-        container.style.width = width + 'px';
-        container.style.height = height + 'px';
+        container.style.width = viewWidth + 'px';
+        container.style.height = viewHeight + 'px';
         container.appendChild(img);
 
         this.saveMemoryContainer = container;
 
         output.appendChild(container);
       } else {
+        if (zoom !== 1) {
+          canvas.style.width = viewWidth + 'px';
+          canvas.style.height = viewHeight + 'px';
+        }
+
         output.appendChild(canvas);
       }
     },
 
-    addImage: function(image, x, y) {
+    addImage: function(image, x, y, width, height) {
       var output = this.output;
       // Cannot do anything while file is not read
       if (!output) return;
@@ -255,25 +340,31 @@
       var rect = output.getBoundingClientRect();
       var self = this;
 
+      width = width || image.width;
+      height = height || image.height;
+
       var draw = function(image) {
-        var left = x - image.width / 2;
-        var top = y - image.height / 2;
+        var left = x - width / 2;
+        var top = y - height / 2;
 
         self.context.drawImage(
           image,
           0, 0, image.naturalWidth, image.naturalHeight,
-          left, top, image.width, image.height
+          left, top, width, height
         );
 
         if (self.saveMemory) {
           var clone = image.cloneNode();
+          var zoom = self.zoom;
 
-          clone.width = image.width;
-          clone.height = image.height;
+          clone.className = clone.id = '';
+
+          clone.width = width * zoom;
+          clone.height = height * zoom;
 
           clone.style.position = 'absolute';
-          clone.style.left = left + 'px';
-          clone.style.top = top + 'px';
+          clone.style.left = left * zoom + 'px';
+          clone.style.top = top * zoom + 'px';
 
           self.saveMemoryContainer.appendChild(clone);
         }
@@ -308,7 +399,7 @@
         var data = new FormData();
 
         try {
-          var file = new File([blob], filename, {
+          var file = new NativeFile([blob], filename, {
             type: type
           });
         } catch (e) {
@@ -320,6 +411,34 @@
 
         callback(file);
       }, type, quality);
+    },
+
+    upload: function(params, callback, errback) {
+      var self = this;
+
+      var doUpload = function(file) {
+        if (file instanceof Blob /* or NativeFile */) {
+          nativeUpload(file, params, callback, doError);
+        } else {
+          cordovaUpload(file, params, callback, doError);
+        }
+      };
+
+      var doError = function(e) {
+        errback('Some error occurred [' + e + ']');
+      };
+
+      self.getFile(function(file) {
+        if (
+          !self.returnAsString &&
+          file instanceof Blob && !(file instanceof NativeFile) &&
+          window.requestFileSystem
+        ) {
+          getFileFromFS(file, doUpload, doError);
+        } else {
+          doUpload(file);
+        }
+      });
     },
 
     getFormData: function(callback) {

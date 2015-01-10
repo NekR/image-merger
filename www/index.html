@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+		<style>
+			html, body {
+				font-family: 'Segoe UI', Tahoma, sans-serif;
+			}
+
+			#link {
+				margin: 10px 0;
+			}
+
+			.pick {
+				cursor: pointer;
+				width: 128px;
+			}
+
+			@media (max-width: 500px) {
+				.pick {
+					width: 64px;
+				}
+			}
+
+			.pick:hover {
+				background: rgba(0, 0, 0, 0.2);
+			}
+
+			#output {
+				position: relative;
+				overflow: hidden;
+			}
+
+			#chosen {
+				font-size: 14px;
+			}
+		</style>
+		<script>
+			window.onerror = function(a, b, c) {
+				setTimeout(function() {
+					alert([a, b, c]);
+				}, 1);
+			};
+		</script>
+	</head>
+	<body>
+		<div id="wrap">
+			<div>
+				<button type="button" id="choose">Choose image</button>
+				<span id="chosen" data-default="Nothing chosen">Nothing chosen</span>
+			</div>
+			<div>
+				<br>
+				<button hidden type="button" id="send">Send</button>
+				<br><br>
+			</div>
+			<div id="output">
+
+			</div>
+			<div id="link" hidden></div>
+			<div id="images" hidden>
+				<img class="pick" draggable="true" src="images/1.png">
+				<img class="pick" draggable="true" src="images/2.png">
+				<img class="pick" draggable="true" src="images/3.png">
+			</div>
+		</div>
+
+		<script src="cordova.js"></script>
+		<script src="lib/canvas-to-blob.min.js"></script>
+		<script src="lib/image-merger.js"></script>
+		<script src="main.js"></script>
+	</body>
+</html>
