@@ -1,3 +1,13 @@
+# Build for Cordova
+To build this for Cordova you of course need ```cordova``` package installed. Also you will need ```shelljs``` installed to run build process.
+
+### Build
+* Go to folder with this project
+* Type and run: ```shjs make init```
+* It will create Cordova project in ```app``` sub directory, will move there all required files and will download required plugins
+* Go to ```app``` and add platform on which you plan to run this project, for example, ```cordova platform add android```
+* At this step you can run project on: ```cordova run android```
+
 # ImageMerger Library
 ImageMerger provided as library file and depends only on this polyfill --
 [Canvas-to-Blob](https://github.com/blueimp/JavaScript-Canvas-to-Blob), this polyfill is included in archive. Also I have included there one example.
